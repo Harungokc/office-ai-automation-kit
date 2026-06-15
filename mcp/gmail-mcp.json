@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "gmail": {
+      "transport": "http",
+      "url": "https://gmail.mcp.so/"
+    }
+  }
+}

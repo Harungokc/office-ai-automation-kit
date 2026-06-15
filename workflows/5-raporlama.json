@@ -1,0 +1,283 @@
+{
+  "name": "5 - Raporlama",
+  "nodes": [
+    {
+      "id": "schedule-cuma",
+      "name": "Zamanlayıcı - Her Cuma 17:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cron",
+              "expression": "0 17 * * 5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "sheets-veri-cek",
+      "name": "Google Sheets - Veri Çek",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [500, 300],
+      "credentials": {
+        "googleSheetsOAuth2": {
+          "id": "google-sheets-creds",
+          "name": "Google Sheets OAuth2"
+        }
+      },
+      "parameters": {
+        "operation": "read",
+        "sheetId": "{{ $env.GOOGLE_SHEETS_SATIS_ID }}",
+        "range": "A1:Z100",
+        "options": {}
+      }
+    },
+    {
+      "id": "ai-rapor-olustur",
+      "name": "AI - Rapor Oluştur",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [750, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "{{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-sonnet-4-20250514"
+            },
+            {
+              "name": "max_tokens",
+              "value": 2048
+            },
+            {
+              "name": "messages",
+              "value": [
+                {
+                  "role": "user",
+                  "content": "Aşağıdaki satış verilerinden haftalık rapor oluştur. Format: markdown, CEO'ya sunulacak kadar profesyonel.\n\nRapor şunları içermeli:\n1. **Özet** (2-3 cümle, bu haftanın genel durumu)\n2. **Bu Hafta vs Geçen Hafta** (satış adedi, ciro, değişim %)\n3. **En İyi Performans Gösterenler** (ürün/kişi/kanal)\n4. **Dikkat Edilmesi Gerekenler** (sorunlar, riskler)\n5. **Önümüzdeki Hafta Önerileri** (3 madde)\n\nVeriler:\n{{ $json }}"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ai-metrics",
+      "name": "AI - Metrik Hesapla",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [750, 500],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "{{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-sonnet-4-20250514"
+            },
+            {
+              "name": "max_tokens",
+              "value": 512
+            },
+            {
+              "name": "messages",
+              "value": [
+                {
+                  "role": "user",
+                  "content": "Bu haftanın ve geçen haftanın satış verilerini karşılaştır. Sadece JSON ver:\n\n{\"bu_hafta_satis\": N, \"gecen_hafta_satis\": N, \"degisim_yuzde\": \"N%\", \"bu_hafta_ciro\": N, \"gecen_hafta_ciro\": N, \"ciro_degisim\": \"N%\"}\n\nBu hafta: {{ $json.bu_hafta }}\nGeçen hafta: {{ $json.gecen_hafta }}"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "set-rapor",
+      "name": "Set - Rapor Birleştir",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1000, 400],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-rapor",
+              "name": "rapor",
+              "value": "={{ $json.rapor }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-metrics",
+              "name": "metrikler",
+              "value": "={{ $json.metrikler }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-tarih",
+              "name": "tarih",
+              "value": "={{ $now.format('DD MMMM YYYY') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "email-rapor",
+      "name": "Email - Rapor Gönder",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-creds",
+          "name": "SMTP"
+        }
+      },
+      "parameters": {
+        "fromEmail": "{{ $env.SMTP_USER }}",
+        "toEmail": "ceo@sirket.com",
+        "subject": "📊 Haftalık Satış Raporu - {{ $vars.tarih }}",
+        "body": "<h2>📊 Haftalık Satış Raporu</h2><p><strong>Tarih:</strong> {{ $vars.tarih }}</p><hr>{{ $vars.rapor }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "notion-rapor-kaydet",
+      "name": "Notion - Rapor Arşivle",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [1250, 500],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-creds",
+          "name": "Notion API"
+        }
+      },
+      "parameters": {
+        "operation": "appendBlock",
+        "pageId": "{{ $env.NOTION_RAPOR_PAGE_ID }}",
+        "content": "### 📊 Haftalık Rapor - {{ $vars.tarih }}\n\n{{ $vars.rapor }}\n\n**Metrikler:**\n{{ $vars.metrikler }}\n---\n",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Zamanlayıcı - Her Cuma 17:00": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Veri Çek",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Veri Çek": {
+      "main": [
+        [
+          {
+            "node": "AI - Rapor Oluştur",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI - Metrik Hesapla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Rapor Oluştur": {
+      "main": [
+        [
+          {
+            "node": "Set - Rapor Birleştir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Metrik Hesapla": {
+      "main": [
+        [
+          {
+            "node": "Set - Rapor Birleştir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Rapor Birleştir": {
+      "main": [
+        [
+          {
+            "node": "Email - Rapor Gönder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notion - Rapor Arşivle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["raporlama", "ai", "otomatik"],
+  "meta": {
+    "templateCredsSetup": false,
+    "templateId": "raporlama"
+  }
+}

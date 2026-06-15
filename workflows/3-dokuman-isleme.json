@@ -1,0 +1,269 @@
+{
+  "name": "3 - Doküman İşleme",
+  "nodes": [
+    {
+      "id": "email-trigger-fatura",
+      "name": "Email - Fatura Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-oauth-creds",
+          "name": "Gmail OAuth2"
+        }
+      },
+      "parameters": {
+        "pollTimes": {
+          "interval": [5]
+        },
+        "additionalFields": {
+          "labels": ["Fatura"]
+        }
+      }
+    },
+    {
+      "id": "get-attachment",
+      "name": "Email - Attachment Çek",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-oauth-creds",
+          "name": "Gmail OAuth2"
+        }
+      },
+      "parameters": {
+        "operation": "getAttachment",
+        "emailId": "{{ $json.id }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "claude-pdf-read",
+      "name": "Claude - PDF İçerik Okuma",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [750, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "{{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-sonnet-4-20250514"
+            },
+            {
+              "name": "max_tokens",
+              "value": 2048
+            },
+            {
+              "name": "messages",
+              "value": [
+                {
+                  "role": "user",
+                  "content": "Bu dokümandan aşağıdaki bilgileri çıkar ve JSON formatında ver:\n\n{\"fatura_no\": \"...\", \"tarih\": \"...\", \"tedarikci\": \"...\", \"toplam_tutar\": \"...\", \"kur\": \"...\", \"kalemler\": [...]}\n\n\nDoküman içeriği:\n{{ $json.attachment_content }}"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ai-veri-yapilandir",
+      "name": "AI - Veri Yapılandır",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1000, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "{{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-sonnet-4-20250514"
+            },
+            {
+              "name": "max_tokens",
+              "value": 1024
+            },
+            {
+              "name": "messages",
+              "value": [
+                {
+                  "role": "user",
+                  "content": "Bu fatura verilerini temizle ve standart formata getir. Eksik bilgileri varsayımsal olarak tamamla veya \"bilinmiyor\" yaz. Fatura numarası ve tutar bilgilerini doğrula.\n\n\nVeriler: {{ $json.fatura_verileri }}"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "notion-fatura-kaydet",
+      "name": "Notion - Fatura Kaydet",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [1250, 200],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-creds",
+          "name": "Notion API"
+        }
+      },
+      "parameters": {
+        "operation": "appendBlock",
+        "pageId": "{{ $env.NOTION_FATURA_PAGE_ID }}",
+        "content": "### 🧾 Fatura: {{ $json.fatura_no }}\n\n| Alan | Değer |\n|------|-------|\n| **Fatura No** | {{ $json.fatura_no }} |\n| **Tarih** | {{ $json.tarih }} |\n| **Tedarikçi** | {{ $json.tedarikci }} |\n| **Toplam Tutar** | {{ $json.toplam_tutar }} {{ $json.kur }} |\n\n**Kalemler:**\n{{ $json.kalemler }}\n\n---\n",
+        "options": {}
+      }
+    },
+    {
+      "id": "sheets-fatura-ekle",
+      "name": "Google Sheets - Fatura Ekle",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1250, 400],
+      "credentials": {
+        "googleSheetsOAuth2": {
+          "id": "google-sheets-creds",
+          "name": "Google Sheets OAuth2"
+        }
+      },
+      "parameters": {
+        "operation": "append",
+        "sheetId": "{{ $env.GOOGLE_SHEETS_FATURA_ID }}",
+        "range": "A1:F1",
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        }
+      }
+    },
+    {
+      "id": "email-onay",
+      "name": "Email - Muhasebe Onay",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1500, 300],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-creds",
+          "name": "SMTP"
+        }
+      },
+      "parameters": {
+        "fromEmail": "{{ $env.SMTP_USER }}",
+        "toEmail": "muhasebe@sirket.com",
+        "subject": "✅ Yeni Fatura İşlendi: {{ $json.fatura_no }}",
+        "body": "<p>Yeni fatura sisteme kaydedildi.</p><p><strong>Fatura No:</strong> {{ $json.fatura_no }}</p><p><strong>Tedarikçi:</strong> {{ $json.tedarikci }}</p><p><strong>Tutar:</strong> {{ $json.toplam_tutar }}</p><p>Notion'da detayları görebilirsiniz.</p>",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Email - Fatura Trigger": {
+      "main": [
+        [
+          {
+            "node": "Email - Attachment Çek",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Attachment Çek": {
+      "main": [
+        [
+          {
+            "node": "Claude - PDF İçerik Okuma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude - PDF İçerik Okuma": {
+      "main": [
+        [
+          {
+            "node": "AI - Veri Yapılandır",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Veri Yapılandır": {
+      "main": [
+        [
+          {
+            "node": "Notion - Fatura Kaydet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets - Fatura Ekle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion - Fatura Kaydet": {
+      "main": [
+        [
+          {
+            "node": "Email - Muhasebe Onay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["doküman", "fatura", "ai"],
+  "meta": {
+    "templateCredsSetup": false,
+    "templateId": "dokuman-isleme"
+  }
+}

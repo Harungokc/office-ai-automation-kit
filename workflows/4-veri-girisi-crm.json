@@ -1,0 +1,249 @@
+{
+  "name": "4 - Veri Girişi & CRM",
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Webhook - Form Tetikleyici",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "form-lead",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "ai-veri-temizle",
+      "name": "AI - Veri Temizleme & Doğrulama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "{{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-sonnet-4-20250514"
+            },
+            {
+              "name": "max_tokens",
+              "value": 1024
+            },
+            {
+              "name": "messages",
+              "value": [
+                {
+                  "role": "user",
+                  "content": "Bu form verilerini temizle ve doğrula:\n- Email formatı doğru mu?\n- Telefon numarası düzgün mü?\n- Eksik alan var mı?\n- Şirket ismi standart mı?\n\nYanıtı JSON olarak ver:\n{\"email\": \"...\", \"isim\": \"...\", \"telefon\": \"...\", \"sirket\": \"...\", \"mesaj\": \"...\", \"guvenilirlik\": \"yuksek|orta|duşuk\"}\n\nVeriler: {{ $json }}"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-guvenilirlik",
+      "name": "Koşul - Güvenilirlik Kontrolü",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [750, 300],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-guvenilirlik",
+              "leftValue": "{{ $json.guvenilirlik }}",
+              "rightValue": "duşuk",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "hubspot-create-contact",
+      "name": "HubSpot - Contact Oluştur",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [1000, 200],
+      "credentials": {
+        "hubspotApi": {
+          "id": "hubspot-creds",
+          "name": "HubSpot API"
+        }
+      },
+      "parameters": {
+        "operation": "create",
+        "additionalFields": {
+          "properties": {
+            "email": "{{ $json.email }}",
+            "firstname": "{{ $json.isim }}",
+            "phone": "{{ $json.telefon }}",
+            "company": "{{ $json.sirket }}",
+            "lead_source": "Web Form",
+            "notes_last_updated": "{{ $json.mesaj }}"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "email-tesekkur",
+      "name": "Email - Teşekkür Yanıtı",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1250, 200],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-creds",
+          "name": "SMTP"
+        }
+      },
+      "parameters": {
+        "fromEmail": "{{ $env.SMTP_USER }}",
+        "toEmail": "{{ $json.email }}",
+        "subject": "Teşekkürler! Talebinizi aldık ✅",
+        "body": "<p>Merhaba {{ $json.isim }},</p><p>Talebiniz başarıyla kaydedildi. En kısa sürede sizinle iletişime geçeceğiz.</p><p>Saygılarımızla</p>",
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-lead-bildirim",
+      "name": "Slack - Yeni Lead Bildirimi",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1250, 400],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-creds",
+          "name": "Slack API"
+        }
+      },
+      "parameters": {
+        "channel": {
+          "mode": "name",
+          "value": "#sales-leads"
+        },
+        "text": "🆕 Yeni Lead!\n\n**İsim:** {{ $json.isim }}\n**Şirket:** {{ $json.sirket }}\n**Email:** {{ $json.email }}\n**Telefon:** {{ $json.telefon }}\n**Güvenilirlik:** {{ $json.guvenilirlik }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "email-insan-devreye",
+      "name": "Email - İnsan Devreye Girsin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1000, 450],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-creds",
+          "name": "SMTP"
+        }
+      },
+      "parameters": {
+        "fromEmail": "{{ $env.SMTP_USER }}",
+        "toEmail": "sales@sirket.com",
+        "subject": "⚠️ Yeni Lead - İncelenmeli: {{ $json.isim }}",
+        "body": "<p>Yeni bir form gönderimi geldi ancak otomatik CRM kaydı için güvenilirlik düşük bulundu. Lütfen manuel olarak inceleyin.</p><p><strong>İsim:</strong> {{ $json.isim }}</p><p><strong>Email:</strong> {{ $json.email }}</p><p><strong>Şirket:</strong> {{ $json.sirket }}</p><p><strong>Mesaj:</strong> {{ $json.mesaj }}</p>",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Form Tetikleyici": {
+      "main": [
+        [
+          {
+            "node": "AI - Veri Temizleme & Doğrulama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Veri Temizleme & Doğrulama": {
+      "main": [
+        [
+          {
+            "node": "Koşul - Güvenilirlik Kontrolü",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Koşul - Güvenilirlik Kontrolü": {
+      "main": [
+        [
+          {
+            "node": "HubSpot - Contact Oluştur",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email - İnsan Devreye Girsin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot - Contact Oluştur": {
+      "main": [
+        [
+          {
+            "node": "Email - Teşekkür Yanıtı",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack - Yeni Lead Bildirimi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["crm", "veri-girisi", "lead"],
+  "meta": {
+    "templateCredsSetup": false,
+    "templateId": "veri-girisi-crm"
+  }
+}

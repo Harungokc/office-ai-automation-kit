@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "hubspot": {
+      "transport": "http",
+      "url": "https://hubspot.mcp.so/"
+    }
+  }
+}

@@ -1,0 +1,389 @@
+{
+  "name": "1 - Email Otomasyonu",
+  "nodes": [
+    {
+      "id": "trigger-gmail",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-oauth-creds",
+          "name": "Gmail OAuth2"
+        }
+      },
+      "parameters": {
+        "pollTimes": {
+          "interval": [5]
+        },
+        "additionalFields": {
+          "subjectQuery": ""
+        }
+      }
+    },
+    {
+      "id": "ai-intent-analysis",
+      "name": "AI - Intent Analizi",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "{{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-sonnet-4-20250514"
+            },
+            {
+              "name": "max_tokens",
+              "value": 1024
+            },
+            {
+              "name": "messages",
+              "value": [
+                {
+                  "role": "user",
+                  "content": "Bu email'in intent'ini analiz et ve kategorilendir. Yanıtı sadece JSON olarak ver:\n\n{\"intent\": \"toplanti_sor|fiyal_sor|sikayet|basit_soru|diger\", \" öncelik\": \"yuksek|orta|duşuk\", \"otomatik_yanit_mı\": true|false, \"yanit_tonu\": \"resmi|samimi|resmi_samimi\"}\n\nEmail:\nKimden: {{ $json.from }}\nKonu: {{ $json.subject }}\nİçerik: {{ $json.bodyText }}"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "switch-intent",
+      "name": "Koşul - Intent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [750, 300],
+      "parameters": {
+        "dataType": "string",
+        "valueComparison": {
+          "leftValue": "{{ $json.intent }}",
+          "comparison": "equals",
+          "rightValue": "toplanti_sor"
+        },
+        "fallbackOutputs": ["fiyal_sor", "sikayet", "basit_soru", "diger"],
+        "options": {}
+      }
+    },
+    {
+      "id": "ai-yanit-toplanti",
+      "name": "AI - Toplantı Yanıtı",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1000, 150],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "{{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-sonnet-4-20250514"
+            },
+            {
+              "name": "max_tokens",
+              "value": 512
+            },
+            {
+              "name": "messages",
+              "value": [
+                {
+                  "role": "user",
+                  "content": "Bu toplantı talebine uygun bir yanıt oluştur. Takvim kontrolü yaparak uygun saatleri belirt.\n\nEmail: {{ $json.subject }} - {{ $json.bodyText }}"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ai-yanit-sikayet",
+      "name": "AI - Şikayet Yanıtı",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1000, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "{{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-sonnet-4-20250514"
+            },
+            {
+              "name": "max_tokens",
+              "value": 512
+            },
+            {
+              "name": "messages",
+              "value": [
+                {
+                  "role": "user",
+                  "content": "Bu şikayet email'ine empatiyle yaklaşan, çözüm odaklı bir yanıt oluştur. Profesyonel ve sakin bir ton kullan.\n\nEmail: {{ $json.subject }} - {{ $json.bodyText }}"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ai-yanit-basit",
+      "name": "AI - Basit Yanıt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1000, 450],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "{{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-sonnet-4-20250514"
+            },
+            {
+              "name": "max_tokens",
+              "value": 512
+            },
+            {
+              "name": "messages",
+              "value": [
+                {
+                  "role": "user",
+                  "content": "Bu email'e kısa, net ve bilgilendirici bir yanıt oluştur.\n\nEmail: {{ $json.subject }} - {{ $json.bodyText }}"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send-reply",
+      "name": "Gmail - Yanıt Gönder",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-oauth-creds",
+          "name": "Gmail OAuth2"
+        }
+      },
+      "parameters": {
+        "operation": "send",
+        "fromEmail": "",
+        "toEmail": "{{ $json.from }}",
+        "subject": "Re: {{ $json.subject }}",
+        "body": "{{ $json.yanit }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-bildirim",
+      "name": "Slack - Bildirim",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1250, 600],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-creds",
+          "name": "Slack API"
+        }
+      },
+      "parameters": {
+        "channel": {
+          "mode": "name",
+          "value": "#ai-otomasyon"
+        },
+        "text": "📧 Yeni email işlendi\n\nKimden: {{ $json.from }}\nKonu: {{ $json.subject }}\nIntent: {{ $json.intent }}\nÖncelik: {{ $json.oncelik }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI - Intent Analizi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Intent Analizi": {
+      "main": [
+        [
+          {
+            "node": "Koşul - Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Koşul - Intent": {
+      "main": [
+        [
+          {
+            "node": "AI - Toplantı Yanıtı",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        null,
+        [
+          {
+            "node": "AI - Şikayet Yanıtı",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI - Basit Yanıt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI - Basit Yanıt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Toplantı Yanıtı": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Yanıt Gönder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Şikayet Yanıtı": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Yanıt Gönder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Basit Yanıt": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Yanıt Gönder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - Yanıt Gönder": {
+      "main": [
+        [
+          {
+            "node": "Slack - Bildirim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["email", "otomasyon", "ai"],
+  "meta": {
+    "templateCredsSetup": false,
+    "templateId": "email-otomasyon"
+  }
+}
