@@ -3,7 +3,7 @@
 ## Konsept
 
 Bu skill, Claude Code'a email yönetimi ve otomasyon yetenekleri kazandırır.
-Gelen email'leri analiz eder, önceliklendirir, AI ile yanıtlar ve takip hatırlatıcıları yönetir.
+[langgraph-email-automation](https://github.com/kaymen99/langgraph-email-automation) (⭐258) projesinden ilham alır.
 
 ## Kullanım
 
@@ -31,7 +31,7 @@ claude "Cevaplanmayan email'lerimi kontrol et"
 - `gmail_draft` — Taslak oluştur
 
 ### AI Analiz
-- `email_intent_classify` — Email intent'ini analiz et
+- `email_intent_classify` — Email intent'ini analiz et (LangGraph state machine pattern)
 - `email_prioritize` — Email'leri önceliklendir
 - `email_draft_response` — AI ile yanıt taslağı oluştur
 
@@ -40,7 +40,7 @@ claude "Cevaplanmayan email'lerimi kontrol et"
 ```
 "Email görevim:
 1. Gelen kutusunu kontrol et
-2. Email'leri öncelik sırasına koy
+2. Email'leri öncelik sırasına koy (LangGraph intent classification)
 3. Acil olanları işaretle
 4. Otomatik yanıt verilebilecekleri yanıtla
 5. Kullanıcının müdahalesi gerekenleri bildir
@@ -50,17 +50,34 @@ Hedef: Email yönetim süresini %60 azalt"
 
 ## Intent Sınıflandırması
 
-| Intent | Açıklama | Otomatik Yanıt? |
-|--------|----------|-----------------|
-| `toplanti_sor` | Toplantı talebi | Evet (takvim kontrolü ile) |
-| `fiyat_sor` | Fiyat/sipariş sorusu | Evet |
-| `sikayet` | Şikayet/mağduriyet | Hayır (insan onayı) |
-| `basit_soru` | Bilgi talebi | Evet |
-| `geri_bildirim` | Geri bildirim | Koşullu |
-| `diger` | Diğer | Hayır |
+| Intent | Açıklama | Otomatik Yanıt? | Referans |
+|--------|----------|-----------------|---------|
+| `toplanti_sor` | Toplantı talebi | Evet (takvim kontrolü ile) | langgraph-email-automation |
+| `fiyat_sor` | Fiyat/sipariş sorusu | Evet | LangGraph RAG |
+| `sikayet` | Şikayet/mağduriyet | Hayır (insan onayı) | — |
+| `basit_soru` | Bilgi talebi | Evet | langgraph-email-automation |
+| `geri_bildirim` | Geri bildirim | Koşullu | — |
+| `diger` | Diğer | Hayır | — |
+
+## AI Pipeline (LangGraph Pattern)
+
+```
+[Gmail Trigger]
+  ↓
+[AI - Intent Analizi] (Claude + LangGraph state machine)
+  ├── Toplantı → Takvim kontrolü → Yanıt hazırla
+  ├── Fiyat → Ürün bilgisi → Otomatik yanıt
+  ├── Şikayet → Öncelikli etiket → İnsan devreye girsin
+  └── Basit soru → AI otomatik yanıt
+  ↓
+[Gmail - Send Reply]
+  ↓
+[Slack/Email - Bildirim]
+```
 
 ## Entegrasyonlar
 
 - **Gmail API**: OAuth2 ile bağlantı
 - **Claude API**: Intent analizi + yanıt üretimi
+- **LangGraph** (opsiyonel): Çoklu ajan pipeline'ı için — [kaymen99/langgraph-email-automation](https://github.com/kaymen99/langgraph-email-automation)
 - **n8n**: Workflow tetikleyici olarak (workflows/1-email-otomasyon.json)

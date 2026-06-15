@@ -2,96 +2,116 @@
 
 ## Konsept
 
-Bu skill, Claude Code'a otomatik raporlama yetenekleri kazandırır.
-Veri kaynaklarından (Sheets, CRM, Email) çeker, AI ile analiz eder ve profesyonel rapor üretir.
+Bu skill, Claude Code'a haftalık/aylık otomatik raporlama kazandırır.
+[business-intelligence-dashboard](https://github.com/search?q=business+intelligence+dashboard+automation) (⭐6) ve
+[data-engineering-portfolio](https://github.com/search?q=data+engineering+portfolio+bi) projelerinden ilham alır.
 
 ## Kullanım
 
 ```bash
-claude "Bu haftanın satış raporunu oluştur"
-claude "Aylık performans raporu hazırla"
-claude "Raporu PDF olarak kaydet"
-claude "CEO'ya email ile gönder"
+claude "Bu haftanın satış raporunu hazırla"
+claude "Aylık CRM raporunu PDF olarak gönder"
+claude "Performans dashboardunu güncelle"
+claude "Raporu stakeholder'lara email ile gönder"
 ```
 
 ## Araçlar
 
 ### Veri Çekme
 - `sheets_read` — Google Sheets'ten veri çek
-- `sheets_get_metrics` — Belirli metrikleri al
-- `hubspot_get_report` — HubSpot rapor verisi al
-- `email_fetch_data` — Email'den veri çek
+- `hubspot_get_deals` — CRM'den fırsat verisi çek
+- `email_fetch` — Email'lerden metrik çek
 
-### Rapor Üretimi
-- `report_generate` — AI ile rapor oluştur
-- `report_compare` — Dönem karşılaştırması yap
-- `report_forecast` — Tahmin raporu oluştur
+### Rapor Oluşturma
+- `report_generate_text` — Metin tabanlı rapor oluştur
+- `report_generate_markdown` — Markdown formatında rapor
+- `report_generate_pdf` — PDF rapor oluştur
+- `report_generate_chart` — Grafik/chart oluştur
 
-### Çıktı
-- `report_save_pdf` — PDF olarak kaydet
-- `report_send_email` — Email ile gönder
-- `notion_save` — Notion'a arşivle
+### Dağıtım
+- `email_send_report` — Raporu email ile gönder
+- `notion_create_page` — Notion'da rapor sayfası oluştur
+- `slack_post` — Slack'e gönder
 
 ## Prompt Template
 
 ```
-"Rapor görevim:
-1. Google Sheets / HubSpot'tan veri çek
-2. AI ile analiz et
-3. Haftalık/aylık karşılaştırma yap
-4. Action items belirle
-5. Markdown/PDF formatında rapor üret
+"Raporlama görevim:
+1. Veri kaynaklarından (Sheets, CRM, Email) veri çek
+2. AI ile analiz et — trendler, anomaliler, içgörüler
+3. Yapılandırılmış rapor oluştur
+4. PDF/HTML formatında kaydet
+5. Stakeholder'lara email gönder
 
-Rapor bölümleri:
-1. Özet (2-3 cümle)
-2. Metrikler (Tablo)
-3. Karşılaştırma (Bu dönem vs Önceki dönem)
-4. En iyi performans gösterenler
-5. Dikkat noktaları
-6. Öneriler (3 madde)"
+Hedef: Haftalık rapor hazırlama süresini 3 saat → 15 dakika"
 ```
 
-## Rapor Formatı
+## Rapor Şablonu
 
 ```markdown
-# 📊 [Rapor Adı]
+# 📊 [Rapor Adı] — [Dönem]
 
-**Dönem:** [Tarih aralığı]
-**Hazırlayan:** AI Otomasyon
 **Tarih:** [GG.AA.YYYY]
+**Hazırlayan:** Claude AI
 
 ---
 
-## 1. Özet
-[2-3 cümle]
+## 📌 Yönetici Özeti
+[Bir paragrafta en önemli 3 bulgu]
 
-## 2. Metrikler
+## 📈 Temel Metrikler
+| Metrik | Bu Dönem | Geçen Dönem | Değişim |
+|--------|----------|-------------|---------|
+| ... | ... | ... | ↑/↓ %X |
 
-| Metrik | Bu Dönem | Önceki Dönem | Değişim |
-|--------|----------|--------------|---------|
-| ... | ... | ... | ...% |
+## 🔍 Detaylı Analiz
+[Metrik bazlı detaylı açıklama]
 
-## 3. Karşılaştırma
-[Değişim analizi]
+## ⚠️ Dikkat Gerektiren Noktalar
+[Olası sorunlar, riskler]
 
-## 4. En İyi Performans
-- ...
-- ...
+## ✅ Öneriler
+[AI tarafından üretilen öneriler]
 
-## 5. Dikkat Noktaları
-- ...
-
-## 6. Önümüzdeki Dönem Önerileri
-1. ...
-2. ...
-3. ...
+## 📅 Sonraki Dönem Beklentileri
+[Projeksiyonlar]
 ```
+
+## ETL + Raporlama Pipeline
+
+```
+[Schedule (Haftalık/Aylık) - Cron trigger]
+  ↓
+[n8n - Veri kaynaklarından çek]
+  ├── Google Sheets (satış verileri)
+  ├── HubSpot (CRM pipeline)
+  └── Email (müşteri geri bildirimleri)
+  ↓
+[Python/Pandas - Veri temizleme + birleştirme]
+  ↓
+[Claude API - AI analizi + içgörüler]
+  ↓
+[Markdown → PDF dönüştürme]
+  ↓
+[Email - Stakeholder'lara gönderim]
+  ↓
+[Notion - Arşivleme]
+```
+
+## Referans Projeler
+
+| Proje | ⭐ | Katkı |
+|-------|----|-------|
+| [business-intelligence-dashboard](https://github.com/search?q=business+intelligence+dashboard) | **6** | End-to-end BI platformu — KPI, dashboard, otomatik raporlama |
+| [data-engineering-portfolio](https://github.com/search?q=data+engineering+portfolio) | **5** | Data pipeline + Power BI raporlama |
+| [Azure-Data-Engineering-Project](https://github.com/Azure-Data-Engineering-Project) | **4** | ADF → Databricks → Synapse → Power BI pipeline |
+| [Scalable-Data-Pipeline-Real-Time](https://github.com/Scalable-Data-Pipeline-Real-Time-Analytics-on-Azure) | **4** | Real-time analytics + Power BI |
+| [End-to-End-Data-Engineering-Project](https://github.com/End-to-End-Data-Engineering-Project) | **3** | Bronze → Silver → Gold medallion architecture |
 
 ## Entegrasyonlar
 
-- **Google Sheets API**: Veri kaynağı
-- **HubSpot API**: CRM verileri
-- **Notion API**: Rapor arşivi
-- **Gmail API**: Rapor gönderimi
-- **Claude API**: Rapor üretimi
+- **Google Sheets API**: Veri çekme
+- **HubSpot API**: CRM metrikleri
+- **Claude API**: AI analizi
+- **Notion API**: Arşivleme
 - **n8n**: Workflow (workflows/5-raporlama.json)

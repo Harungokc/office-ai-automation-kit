@@ -3,7 +3,8 @@
 ## Konsept
 
 Bu skill, Claude Code'a takvim ve toplantı yönetimi yetenekleri kazandırır.
-Toplantıları planlar, transkriptleri analiz eder, özet çıkarır ve Notion'a kaydeder.
+[AI-Powered-Meeting-Summarizer](https://github.com/AI-Powered-Meeting-Summarizer) (⭐150) ve
+[Meeting-Summary-Generator](https://github.com/Meeting-Summary-Generator) (⭐53) projelerinden ilham alır.
 
 ## Kullanım
 
@@ -23,9 +24,9 @@ claude "Toplantı özetini Notion'a kaydet"
 - `calendar_delete_event` — Toplantıyı sil
 
 ### Toplantı Analizi
-- `meeting_transcript` — Toplantı transkriptini al (Fireflies/Otter)
-- `meeting_summarize` — Transkripti analiz et, özet çıkar
-- `meeting_action_items` — Action items'ları belirle
+- `meeting_transcript` — Toplantı transkriptini al (Whisper + Fireflies/Otter)
+- `meeting_summarize` — Transkripti analiz et, özet çıkar (GPT/Claude)
+- `meeting_action_items` — Action items'ları belirle (AI extraction)
 
 ### Notion Entegrasyonu
 - `notion_create_page` — Notion'da yeni sayfa oluştur
@@ -37,7 +38,7 @@ claude "Toplantı özetini Notion'a kaydet"
 ```
 "Toplantı görevim:
 1. Bugünkü/yaklaşan toplantıları listele
-2. Transkript varsa al
+2. Transkript varsa al (Whisper)
 3. AI ile özet + action items çıkar
 4. Notion'a kaydet
 5. Katılımcılara email gönder
@@ -67,10 +68,27 @@ Hedef: Toplantı notu yazma süresini 0'a indir"
 - [Takip edilecek konu]
 ```
 
-## Entegrasyonlar
+## AI Pipeline
 
-- **Google Calendar API**: Toplantı verisi
-- **Fireflies.ai / Otter.ai**: Transkript
-- **Notion API**: Özet kayıt
-- **Claude API**: Özet + action items üretimi
-- **n8n**: Workflow (workflows/2-toplanti-takvim.json)
+```
+[Schedule / Google Calendar Trigger]
+  ↓
+[Google Calendar - Yaklaşan toplantıları çek]
+  ↓
+[Whisper / Fireflies API - Transkript çek]
+  ↓
+[Claude/GPT - Özet + Action Items çıkar]
+  ↓
+[Notion - Toplantı notu kaydet]
+  ↓
+[Email - Katılımcılara özet gönder]
+```
+
+## Referans Projeler
+
+| Proje | ⭐ | Katkı |
+|-------|----|-------|
+| [AI-Powered-Meeting-Summarizer](https://github.com/AI-Powered-Meeting-Summarizer) | 150 | Whisper + GPT tabanlı toplantı özeti |
+| [Meeting-Summary-Generator](https://github.com/Meeting-Summary-Generator) | 53 | Kararlar, action items, tartışma noktaları |
+| [fathom-mcp](https://github.com/search?q=fathom+mcp) | 15 | Cursor'dan Fathom transkriptlerine MCP erişimi |
+| [MeetSummAIzer-AzureOpenAI](https://github.com/MeetSummAIzer-AzureOpenAI) | 16 | Teams/Skype .docx → AI özet |
